@@ -66,7 +66,7 @@ class DefaultControllerEnvironment extends ControllerEnvironment {
 		else
 			System.loadLibrary(lib_name);
 	}
-    
+
     /**
      * List of all controllers in this environment
      */
@@ -84,25 +84,38 @@ class DefaultControllerEnvironment extends ControllerEnvironment {
      * Returns a list of all controllers available to this environment,
      * or an empty array if there are no controllers in this environment.
      */
-    public Controller[] getControllers() {
-        if (controllers == null) {
-            // Controller list has not been scanned.
-            controllers = new ArrayList<>();
-            scanControllers();
-            //Check the properties for specified controller classes
-            String pluginClasses = System.getProperty("jinput.plugins", "") + " " + System.getProperty("net.java.games.input.plugins", "");
-			if(!System.getProperty("jinput.useDefaultPlugin", "true").toLowerCase().trim().equals("false") && !System.getProperty("net.java.games.input.useDefaultPlugin", "true").toLowerCase().trim().equals("false")) {
-				String osName = System.getProperty("os.name", "").trim();
+    public Controller[] getControllers()
+    {
+        reloadControllers();
+        Controller[] ret = new Controller[controllers.size()];
+        Iterator<Controller> it = controllers.iterator();
+        int i = 0;
+        while (it.hasNext())
+        {
+            ret[i] = it.next();
+            i++;
+        }
+        return ret;
+    }
 
-				switch(osName) {
+
+    private void reloadControllers()
+    {
+        controllers = new ArrayList<>();
+         scanControllers();
+        //Check the properties for specified controller classes
+        String pluginClasses = System.getProperty("jinput.plugins", "") + " " + System.getProperty("net.java.games.input.plugins", "");
+        if(!System.getProperty("jinput.useDefaultPlugin", "true").toLowerCase().trim().equals("false") && !System.getProperty("net.java.games.input.useDefaultPlugin", "true").toLowerCase().trim().equals("false")) {
+            String osName = System.getProperty("os.name", "").trim();
+            switch(osName) {
 					case "Linux": {
-						pluginClasses = pluginClasses + " net.java.games.input.LinuxEnvironmentPlugin";
-						break;
+                pluginClasses = pluginClasses + " net.java.games.input.LinuxEnvironmentPlugin";
+            break;
 					}
 
 					case "Mac OS X": {
-						pluginClasses = pluginClasses + " net.java.games.input.OSXEnvironmentPlugin";
-						break;
+                pluginClasses = pluginClasses + " net.java.games.input.OSXEnvironmentPlugin";
+            break;
 					}
 
 					case "Windows 98":
@@ -117,53 +130,39 @@ class DefaultControllerEnvironment extends ControllerEnvironment {
 					case "Windows 8":
 					case "Windows 8.1":
 					case "Windows 10":
-					case "Windows 11": {
-						pluginClasses = pluginClasses + " net.java.games.input.DirectAndRawInputEnvironmentPlugin";
-						break;
+                case "Windows 11": {pluginClasses = pluginClasses + " net.java.games.input.DirectAndRawInputEnvironmentPlugin";
+            break;
 					}
-
-					default: {
-						if (osName.startsWith("Windows")) {
-							log.warning("Found unknown Windows version: " + osName);
-							log.warning("Attempting to use default windows plug-in.");
-							pluginClasses = pluginClasses + " net.java.games.input.DirectAndRawInputEnvironmentPlugin";
-						} else {
-							log.warning("Trying to use default plugin, OS name " + osName + " not recognised");
-						}
-					}
-				}
+                default: {
+             if (osName.startsWith("Windows")) {
+                log.warning("Found unknown Windows version: " + osName);
+                log.warning("Attempting to use default windows plug-in.");
+                pluginClasses = pluginClasses + " net.java.games.input.DirectAndRawInputEnvironmentPlugin";
+            } else {
+                log.warning("Trying to use default plugin, OS name " + osName +" not recognised");
+            }
+        }}
 			}
 
-			StringTokenizer pluginClassTok = new StringTokenizer(pluginClasses, " \t\n\r\f,;:");
-			while(pluginClassTok.hasMoreTokens()) {
-				String className = pluginClassTok.nextToken();					
-				try {
-					if(!loadedPluginNames.contains(className)) {
-						log.fine("Loading: " + className);
-						Class<?> ceClass = Class.forName(className);
-						ControllerEnvironment ce = (ControllerEnvironment) ceClass.getDeclaredConstructor().newInstance();
-						if(ce.isSupported()) {
-							addControllers(ce.getControllers());
-							loadedPluginNames.add(ce.getClass().getName());
-						} else {
-							log(ceClass.getName() + " is not supported");
-						}
-					}
-				} catch (Throwable e) {
-					e.printStackTrace();
-				}
+		StringTokenizer pluginClassTok = new StringTokenizer(pluginClasses, " \t\n\r\f,;:");
+		while(pluginClassTok.hasMoreTokens()) {
+			String className = pluginClassTok.nextToken();
+			try {
+                log.fine("Loading: " + className);
+                Class<?> ceClass = Class.forName(className);
+                ControllerEnvironment ce = (ControllerEnvironment) ceClass.getDeclaredConstructor().newInstance();
+                if(ce.isSupported()) {
+                    addControllers(ce.getControllers());
+                    loadedPluginNames.add(ce.getClass().getName());
+                } else {
+                    log(ceClass.getName() + " is not supported");
+                }
+			} catch (Throwable e) {
+				e.printStackTrace();
 			}
-        }
-        Controller[] ret = new Controller[controllers.size()];
-        Iterator<Controller> it = controllers.iterator();
-        int i = 0;
-        while (it.hasNext()) {
-            ret[i] = it.next();
-            i++;
-        }
-        return ret;
+		}
     }
-    
+
     /* This is jeff's new plugin code using Jeff's Plugin manager */
     private Void scanControllers() {
         String pluginPathName = System.getProperty("jinput.controllerPluginPath");
